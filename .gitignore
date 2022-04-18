@@ -1,0 +1,11 @@
+# pycharm files 
+.idea/
+.venv/
+
+# macos files 
+.DS_Store
+
+# data 
+data/**
+model/**
+*__pycache__
