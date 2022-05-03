@@ -26,23 +26,21 @@ pip install -r requirements.txt
 Run the following script to preprocess data: 
 ```angular2html
 cd data_prep
-bash download_data.sh [tested, all files seemed there.]
-bash preprocess_data.sh [tested with improved .sh comments so that it shows actual intention of the code]
-bash get_train_qids.sh [this doesn't look useful. haven't run for now]
+bash download_data.sh 
+bash preprocess_data.sh 
 ```
 
 
 ### Get ANCE Passage Embeddings
 ```angular2html
 cd data_prep
-bash get_ance_embs.sh [tested, runnable]
+bash get_ance_embs.sh 
 ```
 
 
 ### Get ANCE Ranking
-# on CPU: 
 ```
-bash get_ance_ranking.sh [tested, runnable. tein files also matched] 
+bash get_ance_ranking.sh 
 ```
 
 ### Prepare PRF data 
