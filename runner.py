@@ -1,6 +1,6 @@
 import time
 import logging
-from util import *
+from utils.util import *
 from data import *
 from lamb import Lamb
 import torch
@@ -236,7 +236,7 @@ class Evaluator:
     def __init__(self, args, dev_dataloader):
         self.args = args
         self.dev_dataloader = dev_dataloader
-        self.prev_evaluated_ckpt = args.prev_evaluated_ckpt
+        self.prev_evaluated_ckpt = 0 if args.prev_evaluated_ckpt is None else args.prev_evaluated_ckpt
 
     def eval(self, rerank_depths=None, mode="rerank", results=None):
         dataset = self.args.dataset

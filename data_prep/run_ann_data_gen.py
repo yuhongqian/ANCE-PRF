@@ -12,7 +12,7 @@ from utils.util import (
     get_latest_ann_data,
 )
 import csv
-from msmarco_data import GetProcessingFn
+from preprocess_data import GetProcessingFn
 from model import RobertaDot_NLL_LN
 from transformers import RobertaTokenizer, RobertaConfig
 import torch.distributed as dist
@@ -182,7 +182,7 @@ def StreamInferenceDoc(args, model, fn, prefix, f, is_query_inference=True):
     _embedding, _embedding2id = InferenceEmbeddingFromStreamDataLoader(
         args, model, inference_dataloader, is_query_inference=is_query_inference, prefix=prefix)
 
-    logger.info("merging embeddings")
+    logger.info(f"merging {prefix} embeddings")
 
     barrier_array_merge(
         args,
@@ -190,12 +190,17 @@ def StreamInferenceDoc(args, model, fn, prefix, f, is_query_inference=True):
         prefix=prefix +
         "_emb_p_",
         load_cache=False)
+    
+    logger.info(f"finished merging {prefix} embeddings")
+
     barrier_array_merge(
         args,
         _embedding2id,
         prefix=prefix +
         "_embid_p_",
         load_cache=False)
+
+    logger.info(f"finished merging {prefix} embeddings ids")
 
 def generate_new_ann(
         args,
@@ -210,7 +215,14 @@ def generate_new_ann(
         StreamInferenceDoc(args, model, GetProcessingFn(
             args, query=True), "dev_query_" + str(latest_step_num) + "_", emb, is_query_inference=True)
 
-    if args.encode_passages:
+    if args.dataset == "marco": 
+        logger.info("***** inference of train query *****")
+        train_query_collection_path = os.path.join(args.data_dir, "train-query")
+        train_query_cache = EmbeddingCache(train_query_collection_path)
+        with train_query_cache as emb:
+            StreamInferenceDoc(args, model, GetProcessingFn(
+                args, query=True), "train_query_" + str(latest_step_num) + "_", emb, is_query_inference=True)
+        
         logger.info("***** inference of passages *****")
         passage_collection_path = os.path.join(args.data_dir, "passages")
         passage_cache = EmbeddingCache(passage_collection_path)
@@ -349,9 +361,8 @@ def get_arguments():
 
     parser.add_argument(
         "--training_dir",
-        default=None,
+        default="",
         type=str,
-        required=True,
         help="Training dir, will look for latest checkpoint dir in here",
     )
 
@@ -508,6 +519,12 @@ def get_arguments():
         help="only encode the passages if specify",
     )
 
+    parser.add_argument(
+        "--dataset",
+        default=None,
+        help="Name of the dataset."
+    )
+
     args = parser.parse_args()
 
     return args
@@ -558,6 +575,7 @@ def ann_data_gen(args):
             os.makedirs(args.output_dir)
         if not os.path.exists(args.cache_dir):
             os.makedirs(args.cache_dir)
+    dist.barrier()
 
     while args.end_output_num == -1 or output_num <= args.end_output_num:
         next_checkpoint, latest_step_num = get_latest_checkpoint(args)

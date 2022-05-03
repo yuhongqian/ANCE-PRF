@@ -71,10 +71,16 @@ def write_query_rel(args, pid2offset, query_file, positive_id_file, out_query_fi
             if idx < 3:
                 print(str(idx) + " " + str(q_id))
 
+    print(f"query_file = {query_file}")
+    if "dev" in query_file: 
+        prefix = "dev-"
+    else:
+        prefix = "train-"
     qid2offset_path = os.path.join(
         args.out_data_dir,
-        "qid2offset.pickle",
+        f"{prefix}qid2offset.pickle"
     )
+
     with open(qid2offset_path, 'wb') as handle:
         pickle.dump(qid2offset, handle, protocol=4)
     print("done saving qid2offset")

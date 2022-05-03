@@ -1,3 +1,6 @@
+# This script uses ANCE FirstP model to generate 
+# marco passage embeddings, marco training query embeddings, and dev query embeddings for all the datasets. 
+
 gpu_no=${1:-4}
 
 repo_dir=$(builtin cd ..; pwd)
@@ -15,22 +18,6 @@ rm Passage_ANCE_FirstP_Checkpoint.zip
 echo "Encoding passages using ANCE model..."
 cd ${repo_dir}/data_prep
 
-dataset="marco"
-python -m torch.distributed.launch --nproc_per_node=$gpu_no run_ann_data_gen.py \
- --training_dir ${model_dir}/ance_firstp  \
- --init_model_dir ${model_dir}/ance_firstp  \
- --model_type rdot_nll \
- --output_dir ${data_dir}/${dataset}_output \
- --cache_dir ${data_dir}/${dataset}_cache \
- --data_dir ${data_dir}/${dataset}_preprocessed \
- --max_seq_length 512 \
- --per_gpu_eval_batch_size 64 \
- --topk_training 200 \
- --negative_sample 20 \
- --end_output_num 0  \
- --inference  \
- --encode_passages
-
 dataset_array=(
     marco
     trec19psg
@@ -39,9 +26,9 @@ dataset_array=(
 )
 
 for dataset in "${dataset_array[@]}"; do
-  echo "Generating ANCE-PRF query embeddings for dataset ${dataset}..."
+  echo "Generating ANCE embeddings for dataset ${dataset}..."
   python -m torch.distributed.launch --nproc_per_node=$gpu_no run_ann_data_gen.py \
-   --training_dir ${model_dir}/ance_firstp  \
+   --dataset ${dataset} \
    --init_model_dir ${model_dir}/ance_firstp  \
    --model_type rdot_nll \
    --output_dir ${data_dir}/${dataset}_output \
@@ -53,5 +40,7 @@ for dataset in "${dataset_array[@]}"; do
    --negative_sample 20 \
    --end_output_num 0  \
    --inference
-  ln -s ${data_dir}/marco_output/passage* ${data_dir}/${dataset}_output/
+  if [ "$dataset" != "marco" ]; then
+    ln -s ${data_dir}/marco_output/passage* ${data_dir}/${dataset}_output/
+  fi
 done

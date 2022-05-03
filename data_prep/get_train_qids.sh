@@ -1,3 +1,5 @@
+# This script 
+
 repo_dir=$(builtin cd ..; pwd)
 data_dir=${repo_dir}/data
 

@@ -1,4 +1,11 @@
-# Splits data into chunks for easier loading later
+# This script does two things: 
+# 1. Multi-process tokenization of the passages & queries, and save the tokenized data in binary format: 
+#    (1) Binary passage tokens are saved in `passages`
+#    (2) Binary query tokens are saved in `train-query` and `dev-query`
+#    Note that files suffixed with `_split*` are simply unmerged segments of (1) & (2). 
+# 2. Save pid2offset & qid2offset since multiprocessing messed up the passage & query order. 
+#    pid & qid are the ids from the original dataset. offsets are the orders of the passages/queries in the multiprocessed binary.  
+
 
 dataset_array=(
     marco

@@ -6,6 +6,7 @@
 .DS_Store
 
 # data 
+outputs/**
 data/**
 model/**
 *__pycache__

@@ -6,6 +6,7 @@ output_dir=${repo_dir}/outputs
 data_dir=${repo_dir}/data
 mkdir -p ${output_dir}
 
+dataset="marco"
 python -m torch.distributed.launch --nproc_per_node=${gpu_no} main.py   \
     --train   \
     --logging_steps 100 \
@@ -17,6 +18,6 @@ python -m torch.distributed.launch --nproc_per_node=${gpu_no} main.py   \
     --num_feedbacks ${num_feedbacks}  \
     --per_gpu_train_batch_size 4 \
     --load_optimizer_scheduler  \
-    --ance_checkpoint_path ${data}/marco_output \
-    --preprocessed_dir ${data}/marco_preprocessed  \
-    --train_data_dir ${data_dir}/${dataset}_train_prf
+    --ance_checkpoint_path ${data_dir}/${dataset}_output \
+    --preprocessed_dir ${data_dir}/${dataset}_preprocessed  \
+    --train_data_dir  ${data_dir}/${dataset}_output 

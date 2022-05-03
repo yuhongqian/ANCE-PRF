@@ -18,12 +18,14 @@ import pytrec_eval
 import pickle
 import numpy as np
 import torch
+import csv 
 
 torch.multiprocessing.set_sharing_strategy('file_system')
 from multiprocessing import Process
 from torch.utils.data import DataLoader, Dataset, TensorDataset, IterableDataset
 import re
 from model import MSMarcoConfig, RobertaDot_NLL_LN
+from transformers import RobertaConfig, RobertaTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ def load_embedding_prefix(prefix):
                       "rb") as handle:
                 embedding2id.append(np.load(handle, allow_pickle=True))
         except Exception as e:
-            print(e)
+            print(f"Loaded {i} chunks of embeddings.")
             break
     embedding = np.concatenate(embedding, axis=0)
     embedding2id = np.concatenate(embedding2id, axis=0)
@@ -49,10 +51,7 @@ def load_embedding_prefix(prefix):
 
 def load_embeddings(args, mode="train", checkpoint=0):
 
-    if mode == "train":
-        query_prefix = "query_"
-    elif mode == "dev":
-        query_prefix = "dev_query_"
+    query_prefix = f"{mode}_query_"
 
     query_embedding, query_embedding2id = load_embedding_prefix(os.path.join(args.ance_checkpoint_path, query_prefix + str(checkpoint)))
     passage_embedding, passage_embedding2id = load_embedding_prefix(os.path.join(args.ance_checkpoint_path, "passage_" + str(checkpoint)))
@@ -349,81 +348,6 @@ def numbered_byte_file_generator(base_path, file_no, record_size):
                 yield b
 
 
-class EmbeddingCache:
-    def __init__(self, base_path, seed=-1):
-        self.base_path = base_path
-        with open(base_path + '_meta', 'r') as f:
-            meta = json.load(f)
-            self.dtype = np.dtype(meta['type'])
-            self.total_number = meta['total_number']
-            self.record_size = int(
-                meta['embedding_size']) * self.dtype.itemsize + 4
-        if seed >= 0:
-            self.ix_array = np.random.RandomState(
-                seed).permutation(self.total_number)
-        else:
-            self.ix_array = np.arange(self.total_number)
-        self.f = None
-
-    def open(self):
-        self.f = open(self.base_path, 'rb')
-
-    def close(self):
-        self.f.close()
-
-    def read_single_record(self):
-        record_bytes = self.f.read(self.record_size)
-        passage_len = int.from_bytes(record_bytes[:4], 'big')
-        passage = np.frombuffer(record_bytes[4:], dtype=self.dtype)
-        return passage_len, passage
-
-    def __enter__(self):
-        self.open()
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
-
-    def __getitem__(self, key):
-        if key < 0 or key > self.total_number:
-            raise IndexError(
-                "Index {} is out of bound for cached embeddings of size {}".format(
-                    key, self.total_number))
-        self.f.seek(key * self.record_size)
-        return self.read_single_record()
-
-    def __iter__(self):
-        self.f.seek(0)
-        for i in range(self.total_number):
-            new_ix = self.ix_array[i]
-            yield self.__getitem__(new_ix)
-
-    def __len__(self):
-        return self.total_number
-
-
-class StreamingDataset(IterableDataset):
-    def __init__(self, elements, fn, distributed=True):
-        super().__init__()
-        self.elements = elements
-        self.fn = fn
-        self.num_replicas = -1
-        self.distributed = distributed
-
-    def __iter__(self):
-        if dist.is_initialized():
-            self.num_replicas = dist.get_world_size()
-            self.rank = dist.get_rank()
-        else:
-            print("Not running in distributed mode")
-        for i, element in enumerate(self.elements):
-            if self.distributed and self.num_replicas != -1 and i % self.num_replicas != self.rank:
-                continue
-            records = self.fn(element, i)
-            for rec in records:
-                yield rec
-
-
 def tokenize_to_file(args, i, num_process, in_path, out_path, line_fn):
     configObj = MSMarcoConfig(name="rdot_nll", model=RobertaDot_NLL_LN, process_fn=triple_process_fn, use_mean=False)
     tokenizer = configObj.tokenizer_class.from_pretrained(
@@ -501,3 +425,102 @@ def all_gather(data):
         data_list.append(pickle.loads(buffer))
 
     return data_list
+
+
+def get_offset2qid(args):
+    path = os.path.join(args.processed_data_dir, f"{args.mode}-offset2qid.pickle")
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    with open(os.path.join(args.processed_data_dir, f"{args.mode}-qid2offset.pickle"), "rb") as f:
+        qid2offset = pickle.load(f)
+    offset2qid = {}
+    for qid, offset in qid2offset.items():
+        offset2qid[offset] = qid
+    with open(path, "wb") as f:
+        pickle.dump(offset2qid, f)
+    return offset2qid
+
+
+def get_embedding2qid(args):
+    path = os.path.join(args.processed_data_dir, f"{args.mode}-embedding2qid.pickle")
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    query_prefix = f"{args.mode}_query_0"
+    query_embedding, query_embedding2id = load_embedding_prefix(os.path.join(args.ance_checkpoint_path, query_prefix))
+    offset2qid = get_offset2qid(args)
+    embedding2qid = {} 
+    for embeddingid, offset in enumerate(query_embedding2id): 
+        embedding2qid[embeddingid] = offset2qid[offset]
+    with open(path, "wb") as f:
+        pickle.dump(embedding2qid, f)
+    return embedding2qid
+
+
+def offset_to_orig_id(orig2offset):
+    offset2orig = dict()
+    for k, v in orig2offset.items():
+        offset2orig[v] = k
+    return offset2orig
+
+
+# qid, pid = marco qid, pid
+# offset = anceID (e.g. 0, 3, 6 ...)
+# embed_id = id into the passage_embedding / query_embedding matrices (as the order it appear when it's given to faiss)
+# In ANCE implementation, all evaluations are done on offset
+def ance_ranking_to_tein(args, dev_I, passage_embedding2id, query_embedid2qid, output_path, top=10):
+    with open(os.path.join(args.processed_data_dir, "pid2offset.pickle"), "rb") as f:
+        pid2offset = pickle.load(f)
+    offset2pid = offset_to_orig_id(pid2offset)
+
+    with open(output_path, "w") as f1, open(output_path+".marco", "w") as f2, \
+            open(f"{output_path}.marco.{top}", "w") as f3:
+        writer1 = csv.writer(f1, delimiter="\t")
+        writer2 = csv.writer(f2, delimiter="\t")
+        writer3 = csv.writer(f3, delimiter="\t")
+        for qry_embed_id, rel_psg_embed_ids in enumerate(dev_I):
+            qid = query_embedid2qid[qry_embed_id]
+            pids = [offset2pid[passage_embedding2id[p_embed_id]] for p_embed_id in rel_psg_embed_ids]
+            rows1 = [[qid, "Q0", pid, rank+1, -rank, "full_ance"] for rank, pid in enumerate(pids)]
+            rows2 = [[qid, pid, rank+1] for rank, pid in enumerate(pids)]
+            rows3 = [[qid, pid, rank+1] for rank, pid in enumerate(pids[:top])]
+            writer1.writerows(rows1)
+            writer2.writerows(rows2)
+            writer3.writerows(rows3)
+
+
+def devI_to_tein(args, query_embedid2qid, devI_path):
+    _, passage_embedding2id = load_embedding_prefix(os.path.join(args.ance_checkpoint_path, "passage_0")) 
+
+    with open(devI_path, "rb") as f:
+        dev_I = np.load(f)
+    tein_path = devI_path + ".tein"
+    ance_ranking_to_tein(args, dev_I, passage_embedding2id, query_embedid2qid, tein_path)
+
+
+def get_binary_qrel(qrel_tsv_path, bin_qrel_path):
+    with open(qrel_tsv_path, "r") as fin, open(bin_qrel_path, "w") as fout:
+        for l in fin:
+            qid, pid, rel = l.split()
+            rel = 0 if int(rel) < 2 else 1
+            fout.write(f"{qid}\t{pid}\t{rel}\n")
+
+
+def load_positve_query_id(args, mode="dev", binary=False):
+    positive_id = {}
+    if not binary:
+        query_positive_id_path = os.path.join(args.preprocessed_dir, f"{mode}-qrel.tsv")
+    else:
+        query_positive_id_path = os.path.join(args.preprocessed_dir, f"binary-{mode}-qrel.tsv")
+
+    with open(query_positive_id_path, 'r', encoding='utf8') as f:
+        tsvreader = csv.reader(f, delimiter="\t")
+        for [topicid, docid, rel] in tsvreader:
+            topicid = int(topicid)
+            docid = int(docid)
+            if topicid not in positive_id:
+                positive_id[topicid] = {}
+            positive_id[topicid][docid] = int(rel)
+    return positive_id

@@ -20,39 +20,33 @@ complementary information from PRF documents, while ignoring the noise with its 
 ```
 pip install -r requirements.txt
 ```
+## Data Preparation 
 
-### Data preprocessing
-Run the following script to preprocess data (on CPU): 
+### Data Preprocessing
+Run the following script to preprocess data: 
 ```angular2html
 cd data_prep
-bash download_data.sh data
-bash preprocess_data.sh
-bash get_train_qids.sh
+bash download_data.sh [tested, all files seemed there.]
+bash preprocess_data.sh [tested with improved .sh comments so that it shows actual intention of the code]
+bash get_train_qids.sh [this doesn't look useful. haven't run for now]
 ```
 
 
 ### Get ANCE Passage Embeddings
 ```angular2html
 cd data_prep
-bash get_ance_psg_embs.sh
+bash get_ance_embs.sh [tested, runnable]
 ```
 
 
 ### Get ANCE Ranking
-Run the following script to obtain ANCE passage embeddings: 
-```angular2html
-cd data_prep
-# on GPU: 
-bash encode_train_queries.sh
 # on CPU: 
-bash get_ance_ranking.sh
+```
+bash get_ance_ranking.sh [tested, runnable. tein files also matched] 
 ```
 
-
 ### Prepare PRF data 
-Download all the files from [this folder](https://drive.google.com/drive/folders/1umsN7rnlWAcLZBZPuXs5ay5sdIQuIOct?usp=sharing) and put them in `./data` (e.g., `./data/ance_fullrank_1k_marco_dev`). These files contain the top 1k passages ranked by ANCE. 
-
-Then, run the following command to create PRF data from ANCE top-retrieved documents (on CPU): 
+Run the following command to create PRF data from ANCE top-retrieved documents: 
 ```angular2html
 cd data_prep 
 bash get_prf_data.sh
@@ -62,13 +56,18 @@ bash get_prf_data.sh
 ```angular2html
 bash train_encoder.sh
 ```
-
-## Inference 
+While training is running, concurrently run
 ```
 bash eval.sh
 ```
+which keeps looking for the newest checkpoints and evaluate it on marco. 
+This is sadly not a very effective use of GPU in terms of utilization percentage, but it makes the training faster by avoiding periodic switching from training to evaluation. 
+
+In our work, we picked the model that performs best on marco dev as reported by `eval.sh` tensorboard. 
+
 
 ## Trained Models and Ranking Files 
-Trained models and ranking files (for k=3) can be downloaded [here](https://drive.google.com/drive/folders/1FybKqWbE1Ap1xDd8MR01ZOqXn9W0Xy8b?usp=sharing). 
+Trained models for k=3 can be downloaded [here](https://drive.google.com/file/d/1xbMgP0Z5tuoqymbWUhfuvRvUx6TvNuVw/view?usp=sharing).
 
+Ranking files for k=3 can be downloaded [here](https://drive.google.com/drive/folders/1FybKqWbE1Ap1xDd8MR01ZOqXn9W0Xy8b?usp=sharing). 
 

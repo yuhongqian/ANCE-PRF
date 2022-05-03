@@ -73,7 +73,7 @@ class StreamingDataset(IterableDataset):
         self.distributed = distributed
         self.psg_embeds = None
         if args.train:
-            with open(os.path.join(args.train_data_dir, "psg_embeds_0"), "rb") as f:
+            with open(os.path.join(args.train_data_dir, "psg_embeds_train_0"), "rb") as f:
                 self.psg_embeds = pickle.load(f)
         elif args.eval:
             with open(os.path.join(args.dev_data_dir, "psg_embeds_dev"), "rb") as f:
@@ -86,7 +86,7 @@ class StreamingDataset(IterableDataset):
         split_idx = (i // self.queries_per_chunk) % self.args.ann_chunk_factor
         if self.curr_split_idx != split_idx:
             logging.info(f"Training on split {split_idx}...")
-            with open(os.path.join(self.args.train_data_dir, f"psg_embeds_{split_idx}"), "rb") as f:
+            with open(os.path.join(self.args.train_data_dir, f"psg_embeds_train_{split_idx}"), "rb") as f:
                 self.psg_embeds = pickle.load(f)
             self.curr_split_idx = split_idx
 
@@ -175,7 +175,6 @@ def GetTripletTrainingDataProcessingFn(args, query_cache, passage_cache, num_fee
     return fn
 
 
-# TODO: fix getprocessingfn
 def attentionVisProcessingFn(args):
     sep_id = 2
     def fn(qry_len, qry, feedback_cache_items):

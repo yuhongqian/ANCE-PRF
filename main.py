@@ -1,4 +1,5 @@
 import os
+import sys
 import random
 import logging
 import argparse
@@ -55,7 +56,7 @@ def parse_args():
     parser.add_argument("--logging_steps", type=int, default=100, help="Log every X updates steps.")
     parser.add_argument("--save_steps", type=int, default=2000, help="Save checkpoint every X updates steps.")
     parser.add_argument("--output_dir", default=None, help="Directory to save output.")
-    parser.add_argument("--prev_evaluated_ckpt", type=int, default=0, help="Start evaluating ckpt after this step.")
+    parser.add_argument("--prev_evaluated_ckpt", type=int, default=None , help="Start evaluating ckpt after this step.")
     parser.add_argument("--dataset", choices=["marco", "marco_eval", "trec19psg", "trec20psg", "dlhard"], default="marco")
     parser.add_argument("--end_eval_ckpt", type=int, default=1000000, help="Start evaluating ckpt after this step.")
 
@@ -81,9 +82,8 @@ def main():
         query_collection_path = os.path.join(args.preprocessed_dir, "train-query")
         query_cache = EmbeddingCache(query_collection_path)
         all_lines = []
-        for i in range(args.ann_chunk_factor):
-            with open(os.path.join(args.train_data_dir, f"qry_encoder_training_data_{i}")) as f:
-                all_lines.extend(f.readlines())
+        with open(os.path.join(args.train_data_dir, "prf_train.tsv"), "r") as f: 
+            all_lines = f.readlines()
         with query_cache, passage_cache:
             train_dataset = StreamingDataset(args, all_lines,
                                              GetTripletTrainingDataProcessingFn(args, query_cache, passage_cache,
@@ -97,7 +97,7 @@ def main():
         rerank_depths = None if args.eval_mode == "full" else [20, 50, 100, 200, 500, 1000]
         query_collection_path = os.path.join(args.preprocessed_dir, "dev-query")
         query_cache = EmbeddingCache(query_collection_path)
-        with open(os.path.join(args.dev_data_dir, f"qry_encoder_dev_data_full")) as f:
+        with open(os.path.join(args.dev_data_dir, f"prf_dev.tsv")) as f:
             all_lines = f.readlines()
 
         with query_cache, passage_cache:
