@@ -24,20 +24,20 @@ dataset_array=(
     dlhard
 )
 
-# mode="dev"
-# for dataset in "${dataset_array[@]}"; do
-#   echo "Generating PRF dev data from ANCE top ranking on ${dataset} dev set..."
-#   python -u get_prf_data.py  \
-#     --processed_data_dir ${data_dir}/${dataset}_preprocessed  \
-#     --output_dir ${data_dir}/${dataset}_output \
-#     --inn_path ${data_dir}/${dataset}_output/${dataset}_${mode}_I.npy \
-#     --ance_checkpoint_path ${data_dir}/${dataset}_output \
-#     --dataset ${dataset} \
-#     --mode dev &
-#   pids="$pids $!"
-# done
+mode="dev"
+for dataset in "${dataset_array[@]}"; do
+  echo "Generating PRF dev data from ANCE top ranking on ${dataset} dev set..."
+  python -u get_prf_data.py  \
+    --processed_data_dir ${data_dir}/${dataset}_preprocessed  \
+    --output_dir ${data_dir}/${dataset}_output \
+    --inn_path ${data_dir}/${dataset}_output/${dataset}_${mode}_I.npy \
+    --ance_checkpoint_path ${data_dir}/${dataset}_output \
+    --dataset ${dataset} \
+    --mode dev &
+  pids="$pids $!"
+done
 
-# for pid in $pids; do
-#     wait $pid
-# done
+for pid in $pids; do
+    wait $pid
+done
 echo "Generated PRF data for all datasets." 

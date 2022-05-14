@@ -161,7 +161,7 @@ if __name__ == '__main__':
     args = parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     query_embedding, query_embedding2id, passage_embedding, passage_embedding2id = load_embeddings(args, args.mode)
-    # generate_data(args, query_embedding2id, passage_embedding2id)
+    generate_data(args, query_embedding2id, passage_embedding2id)
     psg_embeds = get_psg_embeds(args, passage_embedding, passage_embedding2id)
     if args.mode == "train": 
         num_queries = psg_embeds.shape[0]
