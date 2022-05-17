@@ -225,7 +225,7 @@ def generate_new_ann(
         
         logger.info("***** inference of passages *****")
         passage_collection_path = os.path.join(args.data_dir, "passages")
-        passage_cache = EmbeddingCache(passage_collection_path)
+        passage_cache = UtilEmbeddingCache(passage_collection_path)
         with passage_cache as emb:
             StreamInferenceDoc(args, model, GetProcessingFn(args, query=False), "passage_" + str(latest_step_num) + "_",
                                emb, is_query_inference=False)
