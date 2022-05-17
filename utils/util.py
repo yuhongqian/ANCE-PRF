@@ -650,7 +650,7 @@ def EvalDevQuery(query_embedding2id, passage_embedding2id, dev_query_positive_id
     return final_ndcg, eval_query_cnt, final_Map, final_mrr, final_recall, hole_rate, ms_mrr, Ahole_rate, result, prediction
 
 
-class EmbeddingCache:
+class UtilEmbeddingCache:
     def __init__(self, base_path, seed=-1):
         self.base_path = base_path
         with open(base_path + '_meta', 'r') as f:
@@ -703,7 +703,7 @@ class EmbeddingCache:
         return self.total_number
 
 
-class StreamingDataset(IterableDataset):
+class UtilStreamingDataset(IterableDataset):
     def __init__(self, elements, fn, distributed=True):
         super().__init__()
         self.elements = elements

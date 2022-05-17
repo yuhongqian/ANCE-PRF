@@ -6,8 +6,8 @@ from utils.util import (
     barrier_array_merge,
     convert_to_string_id,
     is_first_worker,
-    StreamingDataset,
-    EmbeddingCache,
+    UtilStreamingDataset,
+    UtilEmbeddingCache,
     get_checkpoint_no,
     get_latest_ann_data,
 )
@@ -171,7 +171,7 @@ def InferenceEmbeddingFromStreamDataLoader(
 # streaming inference
 def StreamInferenceDoc(args, model, fn, prefix, f, is_query_inference=True):
     inference_batch_size = args.per_gpu_eval_batch_size  # * max(1, args.n_gpu)
-    inference_dataset = StreamingDataset(f, fn)
+    inference_dataset = UtilStreamingDataset(f, fn)
     inference_dataloader = DataLoader(
         inference_dataset,
         batch_size=inference_batch_size)
@@ -210,7 +210,7 @@ def generate_new_ann(
 
     logger.info("***** inference of dev query *****")
     dev_query_collection_path = os.path.join(args.data_dir, "dev-query")
-    dev_query_cache = EmbeddingCache(dev_query_collection_path)
+    dev_query_cache = UtilEmbeddingCache(dev_query_collection_path)
     with dev_query_cache as emb:
         StreamInferenceDoc(args, model, GetProcessingFn(
             args, query=True), "dev_query_" + str(latest_step_num) + "_", emb, is_query_inference=True)
@@ -218,7 +218,7 @@ def generate_new_ann(
     if args.dataset == "marco": 
         logger.info("***** inference of train query *****")
         train_query_collection_path = os.path.join(args.data_dir, "train-query")
-        train_query_cache = EmbeddingCache(train_query_collection_path)
+        train_query_cache = UtilEmbeddingCache(train_query_collection_path)
         with train_query_cache as emb:
             StreamInferenceDoc(args, model, GetProcessingFn(
                 args, query=True), "train_query_" + str(latest_step_num) + "_", emb, is_query_inference=True)

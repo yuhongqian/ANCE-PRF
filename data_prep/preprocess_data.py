@@ -4,7 +4,7 @@ import torch
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import gzip
 import pickle
-from utils.util import pad_input_ids, multi_file_process, numbered_byte_file_generator, EmbeddingCache
+from utils.util import pad_input_ids, multi_file_process, numbered_byte_file_generator, UtilEmbeddingCache
 import csv
 from torch.utils.data import DataLoader, Dataset, TensorDataset, IterableDataset, get_worker_info
 import numpy as np
@@ -91,7 +91,7 @@ def write_query_rel(args, pid2offset, query_file, positive_id_file, out_query_fi
     with open(out_query_path + "_meta", 'w') as f:
         json.dump(meta, f)
 
-    embedding_cache = EmbeddingCache(out_query_path)
+    embedding_cache = UtilEmbeddingCache(out_query_path)
     print("First line")
     with embedding_cache as emb:
         print(emb[0])
@@ -178,7 +178,7 @@ def preprocess(args):
             'embedding_size': args.max_seq_length}
         with open(out_passage_path + "_meta", 'w') as f:
             json.dump(meta, f)
-        embedding_cache = EmbeddingCache(out_passage_path)
+        embedding_cache = UtilEmbeddingCache(out_passage_path)
         print("First line")
         with embedding_cache as emb:
             print(emb[0])
